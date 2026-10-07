@@ -19,7 +19,7 @@ pub fn tokenize(line: &str) -> Vec<String> {
             }
         }
     }
-    
+
     if !current.is_empty() {
         tokens.push(current);
     }

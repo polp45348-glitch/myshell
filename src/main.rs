@@ -1,21 +1,42 @@
 mod tokenize;
-use tokenize::tokenize;
-use std::io::{self, Write};
-use std::process::Command;
+use rustyline::DefaultEditor;
+use rustyline::error::ReadlineError;
+use rustyline::{Cmd, KeyCode, KeyEvent, Modifiers};
 use std::fs::File;
-
+use std::process::Command;
+use tokenize::tokenize;
 fn main() {
+    let mut rl = DefaultEditor::new().unwrap();
+    rl.bind_sequence(
+        KeyEvent(KeyCode::Up, Modifiers::NONE),
+        Cmd::HistorySearchBackward,
+    );
+    rl.bind_sequence(
+        KeyEvent(KeyCode::Down, Modifiers::NONE),
+        Cmd::HistorySearchForward,
+    );
+    let history_path = std::env::var("HOME")
+        .map(|home| format!("{home}/.myshell_history"))
+        .unwrap_or_default();
+    let _ = rl.load_history(&history_path);
     loop {
-        print!("myshell> ");
-        io::stdout().flush().unwrap();
-
-        let mut input = String::new();
-        if io::stdin().read_line(&mut input).unwrap() == 0 {
-            break;
-        }
+        let input = match rl.readline("myshell> ") {
+            Ok(line) => {
+                let _ = rl.add_history_entry(line.as_str());
+                line
+            }
+            Err(ReadlineError::Interrupted) => continue,
+            Err(ReadlineError::Eof) => break,
+            Err(e) => {
+                eprintln!("myshell : {e}");
+                break;
+            }
+        };
 
         let tokens = tokenize(&input);
-        let Some((cmd, args)) = tokens.split_first() else { continue };
+        let Some((cmd, args)) = tokens.split_first() else {
+            continue;
+        };
 
         match cmd.as_str() {
             "exit" => {
@@ -30,13 +51,13 @@ fn main() {
                             eprintln!("myshell: cd: HOME not set");
                             continue;
                         }
-                    }
+                    },
                 };
                 if let Err(e) = std::env::set_current_dir(&target) {
                     eprintln!("myshell: cd: {e}");
                 }
             }
-                _ => {
+            _ => {
                 let mut args = args.to_vec();
                 let mut out_file: Option<File> = None;
 
@@ -59,16 +80,16 @@ fn main() {
                     }
                 }
 
-                // ส่วนที่หายไป: รันโปรแกรมจริง
                 let mut command = Command::new(cmd);
                 command.args(&args);
                 if let Some(file) = out_file {
-                    command.stdout(file);   // หัวใจของ redirect
+                    command.stdout(file);
                 }
                 if let Err(e) = command.status() {
                     eprintln!("myshell: {cmd}: {e}");
                 }
             }
-        } 
-    } 
+        }
+    }
+    let _ = rl.save_history(&history_path);
 }
