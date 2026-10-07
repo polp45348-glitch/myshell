@@ -1,0 +1,2 @@
+cd Check🟢
+tokenize Check🟢
