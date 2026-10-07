@@ -1,8 +1,8 @@
 mod tokenize;
 use tokenize::tokenize;
-
 use std::io::{self, Write};
 use std::process::Command;
+use std::fs::File;
 
 fn main() {
     loop {
@@ -36,19 +36,39 @@ fn main() {
                     eprintln!("myshell: cd: {e}");
                 }
             }
-            _ => {
-                let mut child = match Command::new(cmd).args(args).spawn() {
-                    Ok(child) => child,
-                    Err(e) => {
-                        eprintln!("myshell: {e}");
+                _ => {
+                let mut args = args.to_vec();
+                let mut out_file: Option<File> = None;
+
+                if let Some(pos) = args.iter().position(|x| x == ">") {
+                    if pos + 1 < args.len() {
+                        let filename = args[pos + 1].clone();
+                        match File::create(&filename) {
+                            Ok(file) => {
+                                out_file = Some(file);
+                                args.drain(pos..=pos + 1);
+                            }
+                            Err(e) => {
+                                eprintln!("myshell: cannot create file {}: {}", filename, e);
+                                continue;
+                            }
+                        }
+                    } else {
+                        eprintln!("myshell: syntax error near unexpected token `newline'");
                         continue;
                     }
-                };
-                if let Err(e) = child.wait() {
-                    eprintln!("myshell: {e}");
+                }
+
+                // ส่วนที่หายไป: รันโปรแกรมจริง
+                let mut command = Command::new(cmd);
+                command.args(&args);
+                if let Some(file) = out_file {
+                    command.stdout(file);   // หัวใจของ redirect
+                }
+                if let Err(e) = command.status() {
+                    eprintln!("myshell: {cmd}: {e}");
                 }
             }
-            
-        }
-    }
+        } 
+    } 
 }

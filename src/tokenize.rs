@@ -19,7 +19,7 @@ pub fn tokenize(line: &str) -> Vec<String> {
             }
         }
     }
-    // TODO: อย่าลืมคำสุดท้ายที่ค้างอยู่ใน current
+    
     if !current.is_empty() {
         tokens.push(current);
     }
