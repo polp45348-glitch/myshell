@@ -1,3 +1,6 @@
+mod tokenize;
+use tokenize::tokenize;
+
 use std::io::{self, Write};
 use std::process::Command;
 
@@ -11,28 +14,41 @@ fn main() {
             break;
         }
 
-        let mut parts = input.split_whitespace();
-        let Some(cmd) = parts.next() else { continue };
-        let args: Vec<&str> = parts.collect();
+        let tokens = tokenize(&input);
+        let Some((cmd, args)) = tokens.split_first() else { continue };
 
-        match cmd {
+        match cmd.as_str() {
             "exit" => {
                 break;
             }
             "cd" => {
-                if let Some(dir) = args.get(0) {
-                    if let Err(e) = std::env::set_current_dir(dir) {
-                        eprintln!("myshell: cd: {e}");
+                let target = match args.first() {
+                    Some(dir) => dir.to_string(),
+                    None => match std::env::var("HOME") {
+                        Ok(home) => home,
+                        Err(_) => {
+                            eprintln!("myshell: cd: HOME not set");
+                            continue;
+                        }
                     }
-                } else {
-                    eprintln!("myshell: cd: missing argument");
+                };
+                if let Err(e) = std::env::set_current_dir(&target) {
+                    eprintln!("myshell: cd: {e}");
                 }
             }
             _ => {
-                if let Err(e) = Command::new(cmd).args(&args).status() {
-                    eprintln!("myshell: {cmd}: {e}");
+                let mut child = match Command::new(cmd).args(args).spawn() {
+                    Ok(child) => child,
+                    Err(e) => {
+                        eprintln!("myshell: {e}");
+                        continue;
+                    }
+                };
+                if let Err(e) = child.wait() {
+                    eprintln!("myshell: {e}");
                 }
             }
+            
         }
     }
 }
