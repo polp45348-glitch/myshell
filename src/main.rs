@@ -3,8 +3,10 @@ use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, KeyCode, KeyEvent, Modifiers};
 use std::fs::File;
+use std::io::ErrorKind;
 use std::process::Command;
 use tokenize::tokenize;
+
 fn main() {
     let mut rl = DefaultEditor::new().unwrap();
     rl.bind_sequence(
@@ -18,7 +20,8 @@ fn main() {
     let history_path = std::env::var("HOME")
         .map(|home| format!("{home}/.myshell_history"))
         .unwrap_or_default();
-        let _ = rl.load_history(&history_path);
+    let _ = rl.load_history(&history_path);
+
     loop {
         let input = match rl.readline("myshell> ") {
             Ok(line) => {
@@ -29,15 +32,15 @@ fn main() {
             Err(ReadlineError::Interrupted) => continue,
             Err(ReadlineError::Eof) => break,
             Err(e) => {
-                eprintln!("myshell : {e}");
+                eprintln!("myshell: {e}");
                 break;
             }
         };
 
         let tokens = tokenize(&input)
-        .iter()
-        .map(|s| expand_tilde(s))
-        .collect::<Vec<String>>();
+            .iter()
+            .map(|s| expand_tilde(s))
+            .collect::<Vec<String>>();
 
         let Some((cmd, args)) = tokens.split_first() else {
             continue;
@@ -45,11 +48,16 @@ fn main() {
 
         match cmd.as_str() {
             "exit" => {
-                break;
+            let cook = match args.first() {
+                    Some(cook) => cook.to_string(),
+                    None => "0".to_string(),
+                };
+                let _ = rl.save_history(&history_path);
+                std::process::exit(cook.parse().unwrap_or(0));
             }
             "cd" => {
                 let target = match args.first() {
-                    Some(dir) => expand_tilde(dir),
+                    Some(dir) => dir.to_string(),
                     None => match std::env::var("HOME") {
                         Ok(home) => home,
                         Err(_) => {
@@ -75,7 +83,7 @@ fn main() {
                                 args.drain(pos..=pos + 1);
                             }
                             Err(e) => {
-                                eprintln!("myshell: cannot create file {}: {}", filename, e);
+                                eprintln!("myshell: cannot create file {filename}: {e}");
                                 continue;
                             }
                         }
@@ -91,13 +99,19 @@ fn main() {
                     command.stdout(file);
                 }
                 if let Err(e) = command.status() {
-                    eprintln!("myshell: {cmd}: {e}");
+                    match e.kind() {
+                        ErrorKind::NotFound => eprintln!("myshell: {cmd}: command not found"),
+                        _ => eprintln!("myshell: {cmd}: {e}"),
+                    }
                 }
-            }
-        }
-    }
+            } // จบแขน _
+        } // จบ match cmd
+    } // จบ loop
+
     let _ = rl.save_history(&history_path);
-} fn expand_tilde(s: &str) -> String {
+} // จบ main
+
+fn expand_tilde(s: &str) -> String {
     let Ok(home) = std::env::var("HOME") else {
         return s.to_string();
     };
