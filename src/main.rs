@@ -18,11 +18,12 @@ fn main() {
     let history_path = std::env::var("HOME")
         .map(|home| format!("{home}/.myshell_history"))
         .unwrap_or_default();
-    let _ = rl.load_history(&history_path);
+        let _ = rl.load_history(&history_path);
     loop {
         let input = match rl.readline("myshell> ") {
             Ok(line) => {
                 let _ = rl.add_history_entry(line.as_str());
+                let _ = rl.save_history(&history_path);
                 line
             }
             Err(ReadlineError::Interrupted) => continue,
@@ -33,7 +34,11 @@ fn main() {
             }
         };
 
-        let tokens = tokenize(&input);
+        let tokens = tokenize(&input)
+        .iter()
+        .map(|s| expand_tilde(s))
+        .collect::<Vec<String>>();
+
         let Some((cmd, args)) = tokens.split_first() else {
             continue;
         };
@@ -44,7 +49,7 @@ fn main() {
             }
             "cd" => {
                 let target = match args.first() {
-                    Some(dir) => dir.to_string(),
+                    Some(dir) => expand_tilde(dir),
                     None => match std::env::var("HOME") {
                         Ok(home) => home,
                         Err(_) => {
@@ -92,4 +97,15 @@ fn main() {
         }
     }
     let _ = rl.save_history(&history_path);
+} fn expand_tilde(s: &str) -> String {
+    let Ok(home) = std::env::var("HOME") else {
+        return s.to_string();
+    };
+    if s == "~" {
+        home
+    } else if let Some(rest) = s.strip_prefix("~/") {
+        format!("{home}/{rest}")
+    } else {
+        s.to_string()
+    }
 }
