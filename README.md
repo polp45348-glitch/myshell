@@ -1,2 +1,1 @@
-cd Check🟢
-tokenize Check🟢
+
