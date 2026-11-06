@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 rustyline = "18.0.1"
+libc = "0.2"

@@ -7,7 +7,11 @@ use std::io::ErrorKind;
 use std::process::Command;
 use tokenize::tokenize;
 
+
 fn main() {
+    unsafe {
+        libc::signal(libc::SIGINT,libc::SIG_IGN);
+    }
     let mut rl = DefaultEditor::new().unwrap();
     rl.bind_sequence(
         KeyEvent(KeyCode::Up, Modifiers::NONE),
@@ -21,7 +25,7 @@ fn main() {
         .map(|home| format!("{home}/.myshell_history"))
         .unwrap_or_default();
     let _ = rl.load_history(&history_path);
-
+    
     loop {
         let input = match rl.readline("myshell> ") {
             Ok(line) => {
@@ -49,7 +53,7 @@ fn main() {
         match cmd.as_str() {
             "exit" => {
             let cook = match args.first() {
-                    Some(cook) => cook.to_string(),
+                                    Some(cook) => cook.to_string(),
                     None => "0".to_string(),
                 };
                 let _ = rl.save_history(&history_path);
@@ -122,4 +126,4 @@ fn expand_tilde(s: &str) -> String {
     } else {
         s.to_string()
     }
-}
+}   
