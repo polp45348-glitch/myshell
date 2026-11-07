@@ -45,7 +45,7 @@ This is a learning project, and I know about these gaps:
 
 ## Roadmap
 
-- [ ] Handle `Ctrl+C` so only the running program is interrupted
+- [✅️] Handle `Ctrl+C` so only the running program is interrupted
 - [ ] Tokenizer that returns typed tokens (`Word`, `Pipe`, `RedirOut`, ...) instead of plain strings
 - [ ] Pipes (`|`)
 - [ ] `<` and `>>` redirection
