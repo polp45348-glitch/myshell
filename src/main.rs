@@ -4,13 +4,13 @@ use rustyline::error::ReadlineError;
 use rustyline::{Cmd, KeyCode, KeyEvent, Modifiers};
 use std::fs::File;
 use std::io::ErrorKind;
+use std::os::unix::process::CommandExt;
 use std::process::Command;
 use tokenize::tokenize;
 
-
 fn main() {
     unsafe {
-        libc::signal(libc::SIGINT,libc::SIG_IGN);
+        libc::signal(libc::SIGINT, libc::SIG_IGN);
     }
     let mut rl = DefaultEditor::new().unwrap();
     rl.bind_sequence(
@@ -25,7 +25,7 @@ fn main() {
         .map(|home| format!("{home}/.myshell_history"))
         .unwrap_or_default();
     let _ = rl.load_history(&history_path);
-    
+
     loop {
         let input = match rl.readline("myshell> ") {
             Ok(line) => {
@@ -52,8 +52,8 @@ fn main() {
 
         match cmd.as_str() {
             "exit" => {
-            let cook = match args.first() {
-                                    Some(cook) => cook.to_string(),
+                let cook = match args.first() {
+                    Some(cook) => cook.to_string(),
                     None => "0".to_string(),
                 };
                 let _ = rl.save_history(&history_path);
@@ -99,12 +99,18 @@ fn main() {
 
                 let mut command = Command::new(cmd);
                 command.args(&args);
+                unsafe {
+                    command.pre_exec(|| {
+                        libc::signal(libc::SIGINT, libc::SIG_DFL);
+                        Ok(())
+                    });
+                }
                 if let Some(file) = out_file {
                     command.stdout(file);
                 }
                 if let Err(e) = command.status() {
                     match e.kind() {
-                        ErrorKind::NotFound => eprintln!("myshell: {cmd}: command not found"),
+                        ErrorKind::NotFound => eprintln!("myshell: {cmd}: Command not fount"),
                         _ => eprintln!("myshell: {cmd}: {e}"),
                     }
                 }
@@ -126,4 +132,4 @@ fn expand_tilde(s: &str) -> String {
     } else {
         s.to_string()
     }
-}   
+}
